@@ -1,0 +1,19 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: volley
+  description: |
+    GenStage producers for EventStoreDB 20+ with Spear
+  annotations:
+    github.com/project-slug: NFIBrokerage/volley
+    backstage.io/source-ref: "https://github.com/NFIBrokerage/volley"
+    backstage.io/github-actions-id: https://github.com/NFIBrokerage/volley
+  tags:
+    - gen-stage
+    - spear
+    - event-store
+spec:
+  type: library
+  lifecycle: experimental
+  owner: team-baemax
+  system: event-store
