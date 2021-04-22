@@ -39,16 +39,22 @@ defmodule Volley.LinearSubscription do
   """
 
   @default_read_size 100
+  @genserver_option_keys ~w[debug name timeout spawn_opt hibernate_after]a
+  @producer_option_keys ~w[buffer_size buffer_keep dispatcher demand]a
 
   use GenStage
 
   def start_link(opts) do
-    GenStage.start_link(__MODULE__, opts)
+    {start_link_opts, opts} = pop_genserver_opts(opts)
+
+    GenStage.start_link(__MODULE__, opts, start_link_opts)
   end
 
   @impl GenStage
   def init(opts) do
-    {:producer, Map.new(opts), Keyword.take(opts, [:buffer_size])}
+    {producer_opts, opts} = pop_producer_opts(opts)
+
+    {:producer, Map.new(opts), producer_opts}
   end
 
   @impl GenStage
@@ -93,16 +99,19 @@ defmodule Volley.LinearSubscription do
   defp read_stream(state, demand) do
     read_size = Keyword.get(state[:read_opts] || [], :max_count, @default_read_size)
     read_size = max(demand, read_size)
+    position = position(state)
 
     opts =
       Map.get(state, :read_opts, [])
       |> Keyword.merge(
-        from: state[:position] || :start,
+        from: position,
         max_count: read_size + 1
       )
 
+    drop_count = if position == :start, do: 0, else: 1
+
     with {:ok, events} <- Spear.read_stream(state.connection, state.stream_name, opts),
-         events when length(events) < read_size <- events |> Stream.drop(1) |> Enum.to_list() do
+         events when length(events) < read_size <- events |> Stream.drop(drop_count) |> Enum.to_list() do
       {:done, events}
     else
       events when is_list(events) -> {:ok, events}
@@ -118,6 +127,11 @@ defmodule Volley.LinearSubscription do
     Spear.subscribe(state.connection, self(), state.stream_name, opts)
   end
 
+  defp position(%{position: position}), do: position
+  defp position(%{restore_stream_position!: {m, f, a}}) do
+    apply(m, f, a)
+  end
+
   defp save_position(state, []), do: state
 
   defp save_position(state, events) when is_list(events) do
@@ -126,5 +140,13 @@ defmodule Volley.LinearSubscription do
 
   defp save_position(state, event) do
     Map.put(state, :position, event)
+  end
+
+  defp pop_genserver_opts(opts) do
+    {Keyword.take(opts, @genserver_option_keys), Keyword.drop(opts, @genserver_option_keys)}
+  end
+
+  defp pop_producer_opts(opts) do
+    {Keyword.take(opts, @producer_option_keys), Keyword.drop(opts, @producer_option_keys)}
   end
 end

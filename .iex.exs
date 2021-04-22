@@ -28,9 +28,11 @@ psub_settings = [
 
 linear_settings = [
   connection: Volley.Client,
+  name: Foo,
   stream_name: stream,
   read_opts: [
-  ]
+  ],
+  restore_stream_position!: {Volley.LinearHandler, :fetch_stream_position!, []}
 ]
 
 defmodule Volley.PsubHandler do
@@ -67,15 +69,21 @@ defmodule Volley.PsubHandler do
   end
 end
 
+stream_position_table = :ets.new(:stream_positions, [:set, :public, :named_table])
+
 defmodule Volley.LinearHandler do
   use GenStage
 
-  def start_link() do
+  def start_link(_) do
     GenStage.start_link(__MODULE__, :ok)
   end
 
   @impl GenStage
   def init(:ok) do
+    Foo
+    |> GenServer.whereis()
+    |> Process.link()
+
     {:consumer, :ok, subscribe_to: [{Foo, max_demand: 1}]}
   end
 
@@ -87,10 +95,19 @@ defmodule Volley.LinearHandler do
       raise "aaaaah!"
     end
 
+    :ets.insert(:stream_positions, {__MODULE__, event})
+
     {:noreply, [], state}
   end
 
   def stream_revision(event), do: event.metadata.stream_revision
+
+  def fetch_stream_position! do
+    case :ets.lookup(:stream_positions, __MODULE__) do
+      [{__MODULE__, position}] -> position
+      [] -> :start
+    end
+  end
 end
 
 settings = %Spear.PersistentSubscription.Settings{message_timeout: 20_000}
