@@ -68,46 +68,29 @@ defmodule Volley.PsubHandler do
 end
 
 defmodule Volley.LinearHandler do
-  use Broadway
+  use GenStage
 
-  def start_link(opts) do
-    Broadway.start_link(__MODULE__,
-      name: __MODULE__,
-      producer: [
-        module: {Volley.LinearSubscription, opts},
-        transformer: {__MODULE__, :transform, []}
-      ],
-      processors: [
-        default: [concurrency: 1]
-      ]
-    )
+  def start_link() do
+    GenStage.start_link(__MODULE__, :ok)
   end
 
-  @impl Broadway
-  def handle_message(:default, %Message{} = message, _context) do
-    position = stream_revision(message)
-    IO.inspect(position, label: "handling no.")
-    if position == 42 do
-      raise "nooo!"
+  @impl GenStage
+  def init(:ok) do
+    {:consumer, :ok, subscribe_to: [{Foo, max_demand: 1}]}
+  end
+
+  @impl GenStage
+  def handle_events([event], _from, state) do
+    event |> stream_revision |> IO.inspect(label: "handling event no.")
+
+    if stream_revision(event) == 42 do
+      raise "aaaaah!"
     end
-    message
+
+    {:noreply, [], state}
   end
 
-  def transform(event, _opts) do
-    %Message{
-      data: event,
-      acknowledger: {__MODULE__, :default, []}
-    }
-  end
-
-  def ack(:default, successful, _failed) do
-    messages = Enum.map(successful, &stream_revision/1)
-    in_order? = Enum.sort(messages) == messages
-    messages = Enum.map(messages, &to_string/1) |> Enum.join(",")
-    IO.inspect({in_order?, messages}, label: "{in order?, positions}")
-  end
-
-  def stream_revision(message), do: message.data.metadata.stream_revision
+  def stream_revision(event), do: event.metadata.stream_revision
 end
 
 settings = %Spear.PersistentSubscription.Settings{message_timeout: 20_000}
