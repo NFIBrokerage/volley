@@ -1,7 +1,5 @@
 defmodule Volley do
-  @moduledoc """
-  GenStage producers for EventStoreDB 20+ with Spear
-  """
+  @moduledoc false
 
   @doc false
   defmacro if_broadway(do: body) do

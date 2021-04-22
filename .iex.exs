@@ -69,7 +69,7 @@ defmodule Volley.PsubHandler do
   end
 end
 
-stream_position_table = :ets.new(:stream_positions, [:set, :public, :named_table])
+:ets.new(:stream_positions, [:set, :public, :named_table])
 
 defmodule Volley.LinearHandler do
   use GenStage
@@ -80,9 +80,7 @@ defmodule Volley.LinearHandler do
 
   @impl GenStage
   def init(:ok) do
-    Foo
-    |> GenServer.whereis()
-    |> Process.link()
+    Foo |> GenServer.whereis() |> Process.link()
 
     {:consumer, :ok, subscribe_to: [{Foo, max_demand: 1}]}
   end
