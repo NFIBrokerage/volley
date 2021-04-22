@@ -88,7 +88,7 @@ defmodule Volley.LinearSubscription do
 
   defp request_events(state, demand) do
     with {:ok, events} <- read_stream(state, demand),
-         events = Enum.to_list(events),
+         events = events |> Stream.drop(1) |> Enum.to_list(),
          {^demand, events} <- {Enum.count(events), events} do
       {:ok, events}
     else
@@ -101,8 +101,8 @@ defmodule Volley.LinearSubscription do
     opts =
       Map.get(state, :read_opts, [])
       |> Keyword.merge(
-        from: state.position,
-        max_count: demand
+        from: state[:position] || :start,
+        max_count: demand + 1
       )
 
     Spear.read_stream(state.connection, state.stream_name, opts)
