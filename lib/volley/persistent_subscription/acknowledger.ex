@@ -15,7 +15,10 @@ if_broadway do
 
     @impl Broadway.Acknowledger
     def ack({connection, subscription}, successful_messages, failed_messages) do
-      successful_ids = Enum.map(successful_messages, & &1.data.id) |> IO.inspect(label: "success")
+      successful_ids =
+        Enum.map(successful_messages, & &1.data.id)
+        |> IO.inspect(label: "success")
+
       failed_ids = Enum.map(failed_messages, & &1.data.id)
 
       Spear.ack(connection, subscription, successful_ids)
