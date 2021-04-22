@@ -35,10 +35,10 @@ defmodule Volley.LinearSubscription do
   Once the producer has caught up to the end of the stream, it will only
   receive newly appended events, and so may be less likely to become
   overwhelmed. Sustained bursts in appends to the stream may eventually
-  overfill the `GenStage` buffer, though. In this case, the producer shuts down
-  the subscription, emits any remaining messages from the mailbox and
-  switches back into reading mode.
+  overfill the `GenStage` buffer, though.
   """
+
+  @default_read_size 100
 
   use GenStage
 
@@ -53,7 +53,7 @@ defmodule Volley.LinearSubscription do
 
   @impl GenStage
   def handle_demand(demand, state) do
-    case request_events(state, demand) do
+    case read_stream(state, demand) do
       {:ok, events} ->
         {:noreply, events, save_position(state, events)}
 
@@ -82,30 +82,32 @@ defmodule Volley.LinearSubscription do
     {:noreply, [event], save_position(state, event)}
   end
 
+  def handle_info(%Spear.Filter.Checkpoint{}, state) do
+    {:noreply, [], state}
+  end
+
   def handle_info({:eos, reason}, state) do
     {:shutdown, reason, state}
   end
 
-  defp request_events(state, demand) do
-    with {:ok, events} <- read_stream(state, demand),
-         events = events |> Stream.drop(1) |> Enum.to_list(),
-         {^demand, events} <- {Enum.count(events), events} do
-      {:ok, events}
-    else
-      {demand_met, events} when demand_met < demand -> {:done, events}
-      error -> error
-    end
-  end
-
   defp read_stream(state, demand) do
+    read_size = Keyword.get(state[:read_opts] || [], :max_count, @default_read_size)
+    read_size = max(demand, read_size)
+
     opts =
       Map.get(state, :read_opts, [])
       |> Keyword.merge(
         from: state[:position] || :start,
-        max_count: demand + 1
+        max_count: read_size + 1
       )
 
-    Spear.read_stream(state.connection, state.stream_name, opts)
+    with {:ok, events} <- Spear.read_stream(state.connection, state.stream_name, opts),
+         events when length(events) < read_size <- events |> Stream.drop(1) |> Enum.to_list() do
+      {:done, events}
+    else
+      events when is_list(events) -> {:ok, events}
+      error -> error
+    end
   end
 
   defp subscribe(state) do
