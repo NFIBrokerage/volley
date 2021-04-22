@@ -118,3 +118,11 @@ reset_psub = fn ->
   Volley.Client.delete_persistent_subscription(stream, group)
   Volley.Client.create_persistent_subscription(stream, group, settings)
 end
+
+do_eventhandling_thingy = fn ->
+  [
+    {Volley.LinearSubscription, linear_settings},
+    Volley.LinearHandler
+  ]
+  |> Supervisor.start_link(strategy: :one_for_one)
+end
