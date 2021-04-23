@@ -1,4 +1,8 @@
 defmodule Volley.LinearHandler do
+  @moduledoc """
+  A test fixture for a GenStage handler for linear subscriptions
+  """
+
   use GenStage
 
   def start_link(opts) do
