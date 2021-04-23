@@ -2,10 +2,10 @@ defmodule Volley.LinearSubscription do
   @moduledoc """
   A subscription which guarantees ordering
 
-  A linear subscription consumes an EventStoreDB stream in order roughly
-  similar to a subscription started via `Spear.subscribe/4`. Linear
-  subscriptions are simpler than persistent subscriptions and can be used
-  in cases where unordered processing is too cumbersome.
+  A linear subscription consumes an EventStoreDB stream in order, as if
+  subscribed via `Spear.subscribe/4`. Linear subscriptions are simpler than
+  persistent subscriptions and can be used in cases where unordered processing
+  is too complicated or undesirable.
 
   ## Backpressure
 
@@ -286,6 +286,10 @@ defmodule Volley.LinearSubscription do
   ## Configuration
 
   TODO
+
+  * :connection
+  * :stream_name
+  * :read_opts
   """
 
   @default_read_size 100
@@ -294,6 +298,7 @@ defmodule Volley.LinearSubscription do
 
   use GenStage
 
+  @doc false
   def start_link(opts) do
     {start_link_opts, opts} = pop_genserver_opts(opts)
 
@@ -309,17 +314,22 @@ defmodule Volley.LinearSubscription do
 
   @impl GenStage
   def handle_demand(demand, state) do
-    case read_stream(state, demand) do
-      {:ok, events} ->
-        {:noreply, events, save_position(state, events)}
+    with false <- Map.has_key?(state, :subscription),
+         {:ok, events} <- read_stream(state, demand) do
+      {:noreply, events, save_position(state, events)}
+    else
+      true ->
+        {:noreply, [], state}
 
       {:done, events} ->
         GenStage.async_info(self(), :subscribe)
 
         {:noreply, events, save_position(state, events)}
 
+      # coveralls-ignore-start
       {:error, reason} ->
         {:stop, reason, state}
+        # coveralls-ignore-stop
     end
   end
 
@@ -329,8 +339,10 @@ defmodule Volley.LinearSubscription do
       {:ok, sub} ->
         {:noreply, [], Map.put(state, :subscription, sub)}
 
+      # coveralls-ignore-start
       {:error, reason} ->
         {:stop, reason, state}
+        # coveralls-ignore-stop
     end
   end
 
@@ -338,6 +350,7 @@ defmodule Volley.LinearSubscription do
     {:noreply, [event], save_position(state, event)}
   end
 
+  # coveralls-ignore-start
   def handle_info(%Spear.Filter.Checkpoint{}, state) do
     {:noreply, [], state}
   end
@@ -346,26 +359,37 @@ defmodule Volley.LinearSubscription do
     {:shutdown, reason, state}
   end
 
+  # coveralls-ignore-stop
+
   defp read_stream(state, demand) do
-    read_size = Keyword.get(state[:read_opts] || [], :max_count, @default_read_size)
+    read_size =
+      Keyword.get(state[:read_opts] || [], :max_count, @default_read_size)
+
     read_size = max(demand, read_size)
     position = position(state)
+    # number of messages to drop because reading is inclusive on the :from
+    drop_count = if position == :start, do: 0, else: 1
 
     opts =
       Map.get(state, :read_opts, [])
       |> Keyword.merge(
         from: position,
-        max_count: read_size + 1
+        max_count: read_size + drop_count
       )
 
-    drop_count = if position == :start, do: 0, else: 1
-
-    with {:ok, events} <- Spear.read_stream(state.connection, state.stream_name, opts),
-         events when length(events) < read_size <- events |> Stream.drop(drop_count) |> Enum.to_list() do
+    with {:ok, events} <-
+           Spear.read_stream(state.connection, state.stream_name, opts),
+         events when length(events) < read_size <-
+           events |> Enum.drop(drop_count) do
       {:done, events}
     else
-      events when is_list(events) -> {:ok, events}
-      error -> error
+      events when is_list(events) ->
+        {:ok, events}
+
+      # coveralls-ignore-start
+      error ->
+        error
+        # coveralls-ignore-stop
     end
   end
 
@@ -378,6 +402,7 @@ defmodule Volley.LinearSubscription do
   end
 
   defp position(%{position: position}), do: position
+
   defp position(%{restore_stream_position!: {m, f, a}}) do
     apply(m, f, a)
   end
@@ -393,10 +418,12 @@ defmodule Volley.LinearSubscription do
   end
 
   defp pop_genserver_opts(opts) do
-    {Keyword.take(opts, @genserver_option_keys), Keyword.drop(opts, @genserver_option_keys)}
+    {Keyword.take(opts, @genserver_option_keys),
+     Keyword.drop(opts, @genserver_option_keys)}
   end
 
   defp pop_producer_opts(opts) do
-    {Keyword.take(opts, @producer_option_keys), Keyword.drop(opts, @producer_option_keys)}
+    {Keyword.take(opts, @producer_option_keys),
+     Keyword.drop(opts, @producer_option_keys)}
   end
 end

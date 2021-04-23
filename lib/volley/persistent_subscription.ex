@@ -3,6 +3,10 @@ defmodule Volley.PersistentSubscription do
   A GenStage producer for persistent subscriptions
 
   TODO
+
+  ## Configuration
+
+  TODO
   """
 
   use GenStage
