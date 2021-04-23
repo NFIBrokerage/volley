@@ -38,10 +38,10 @@ defmodule Volley.LinearSubscription do
   ## Writing handlers for linear subscriptions
 
   Special care must be taken when writing a consumer for linear subscriptions.
-  Consumers must implement head-of-line blocking in order to keep
+  Consumers must implement head-of-line blocking in order to preserve
   correct ordering of events.
 
-  In general, a consumer must meet these four requirements
+  A consumer must meet these four requirements
 
   - only one consumer may subscribe to each producer
   - the consumer must `Process.link/1` itself to the producer process
