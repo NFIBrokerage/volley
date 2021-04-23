@@ -12,9 +12,21 @@ defmodule Volley.PersistentSubscription do
   use GenStage
   import Volley
 
+  # coveralls-ignore-start
+  @doc false
+  def start_link(opts) do
+    {start_link_opts, opts} = pop_genserver_opts(opts)
+
+    GenStage.start_link(__MODULE__, opts, start_link_opts)
+  end
+
+  # coveralls-ignore-stop
+
   @impl GenStage
   def init(opts) do
-    {:producer, Map.new(opts), Keyword.take(opts, [:dispatcher, :demand])}
+    {producer_opts, opts} = pop_producer_opts(opts)
+
+    {:producer, Map.new(opts), producer_opts}
   end
 
   @impl GenStage
@@ -57,5 +69,8 @@ defmodule Volley.PersistentSubscription do
     end
   end
 
+  # coveralls-ignore-start
   defp map_event(event, _state), do: event
+
+  # coveralls-ignore-stop
 end

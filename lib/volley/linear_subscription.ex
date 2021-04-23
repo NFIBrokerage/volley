@@ -293,10 +293,9 @@ defmodule Volley.LinearSubscription do
   """
 
   @default_read_size 100
-  @genserver_option_keys ~w[debug name timeout spawn_opt hibernate_after]a
-  @producer_option_keys ~w[buffer_size buffer_keep dispatcher demand]a
 
   use GenStage
+  import Volley
 
   @doc false
   def start_link(opts) do
@@ -415,15 +414,5 @@ defmodule Volley.LinearSubscription do
 
   defp save_position(state, event) do
     Map.put(state, :position, event)
-  end
-
-  defp pop_genserver_opts(opts) do
-    {Keyword.take(opts, @genserver_option_keys),
-     Keyword.drop(opts, @genserver_option_keys)}
-  end
-
-  defp pop_producer_opts(opts) do
-    {Keyword.take(opts, @producer_option_keys),
-     Keyword.drop(opts, @producer_option_keys)}
   end
 end

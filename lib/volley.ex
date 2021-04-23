@@ -5,6 +5,9 @@ defmodule Volley do
   TODO
   """
 
+  @genserver_option_keys ~w[debug name timeout spawn_opt hibernate_after]a
+  @producer_option_keys ~w[buffer_size buffer_keep dispatcher demand]a
+
   # coveralls-ignore-start
   @doc false
   defmacro if_broadway(do: body) do
@@ -18,4 +21,16 @@ defmodule Volley do
   end
 
   # coveralls-ignore-stop
+
+  @doc false
+  def pop_genserver_opts(opts) do
+    {Keyword.take(opts, @genserver_option_keys),
+     Keyword.drop(opts, @genserver_option_keys)}
+  end
+
+  @doc false
+  def pop_producer_opts(opts) do
+    {Keyword.take(opts, @producer_option_keys),
+     Keyword.drop(opts, @producer_option_keys)}
+  end
 end

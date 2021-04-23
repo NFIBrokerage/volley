@@ -2,4 +2,5 @@
 
 [Volley.SpearClient] |> Supervisor.start_link(strategy: :one_for_one)
 
+ExUnit.configure(assert_receive_timeout: 1_000)
 ExUnit.start()
