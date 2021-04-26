@@ -1,8 +1,8 @@
-# volley
+# Volley
 
 ![Actions CI](https://github.com/NFIBrokerage/volley/workflows/Actions%20CI/badge.svg)
 
-GenStage producers for EventStoreDB 20+ with Spear
+GenStage/Broadway producers for EventStoreDB 20+ with [Spear](https://github.com/NFIBrokerage/spear).
 
 ## Installation
 
