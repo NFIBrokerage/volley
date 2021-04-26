@@ -21,23 +21,28 @@ defmodule Volley.BroadwayPersistentSubscriptionTest do
     [
       settings: settings,
       stream_name: stream,
-      group_name: group
+      group_name: group,
+      subscriptions: [
+        [
+          connection: @client,
+          stream_name: stream,
+          group_name: group,
+          opts: [
+            buffer_size: 10
+          ]
+        ]
+      ]
     ]
   end
 
-  describe "given a stream has events" do
+  describe "(broadway) given a stream has events" do
     setup :write_events
 
     setup c do
       [
         opts: [
-          connection: @client,
-          stream_name: c.stream_name,
-          group_name: c.group_name,
+          subscriptions: c.subscriptions,
           broadway?: true,
-          subscription_opts: [
-            buffer_size: 10
-          ],
           name: String.to_atom(uuid_v4()),
           test_proc: self()
         ]
@@ -68,6 +73,32 @@ defmodule Volley.BroadwayPersistentSubscriptionTest do
       write_events(c.stream_name, 25, 51)
 
       assert MapSet.equal?(collect_events(), MapSet.new([]))
+    end
+  end
+
+  describe "(gen_stage) given a stream has events" do
+    setup :write_events
+
+    setup c do
+      [
+        opts: [
+          subscriptions: c.subscriptions,
+          broadway?: false,
+          name: String.to_atom(uuid_v4())
+        ]
+      ]
+    end
+
+    test "a persistent subscription receives the events in chunks", c do
+      start_supervised!({Volley.PersistentSubscription, c.opts})
+
+      assert {:ok, _pid} =
+               start_supervised(
+                 {Volley.GenStagePersistentHandler,
+                  producer: c.opts[:name], test_proc: self()}
+               )
+
+      assert MapSet.equal?(collect_events(), MapSet.new(1..50))
     end
   end
 

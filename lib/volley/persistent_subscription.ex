@@ -11,6 +11,9 @@ defmodule Volley.PersistentSubscription do
 
   use GenStage
   import Volley
+  alias __MODULE__.Subscription
+
+  defstruct [:config, subscriptions: %{}]
 
   # coveralls-ignore-start
   @doc false
@@ -26,12 +29,40 @@ defmodule Volley.PersistentSubscription do
   def init(opts) do
     {producer_opts, opts} = pop_producer_opts(opts)
 
-    {:producer, Map.new(opts), producer_opts}
+    subscriptions =
+      opts
+      |> Keyword.get(:subscriptions, [])
+      |> Enum.map(&Subscription.from_config/1)
+
+    Enum.each(subscriptions, fn sub -> send(self(), {:connect, sub}) end)
+
+    config =
+      opts
+      |> Map.new()
+      |> Map.put(:subscriptions, subscriptions)
+
+    {:producer, %__MODULE__{config: config}, producer_opts}
   end
 
   @impl GenStage
-  def handle_info({:eos, _reason}, state) do
-    {:noreply, [], Map.delete(state, :subscription)}
+  def handle_info({:connect, subscription}, state) do
+    state =
+      case Subscription.connect(subscription) do
+        {:ok, %Subscription{ref: ref} = subscription} ->
+          put_in(state.subscriptions[ref], subscription)
+
+        :error ->
+          state
+      end
+
+    {:noreply, [], state}
+  end
+
+  def handle_info({:eos, subscription, _reason}, state) do
+    {%Subscription{} = sub, state} = pop_in(state.subscriptions[subscription])
+    Subscription.reconnect(sub)
+
+    {:noreply, [], state}
   end
 
   def handle_info(%Spear.Event{} = event, state) do
@@ -40,37 +71,22 @@ defmodule Volley.PersistentSubscription do
 
   @impl GenStage
   def handle_demand(_demand, state) do
-    with nil <- state[:subscription],
-         {:ok, subscription} <- subscribe(state) do
-      {:noreply, [], Map.put(state, :subscription, subscription)}
-    else
-      _ -> {:noreply, [], state}
-    end
-  end
-
-  defp subscribe(state) do
-    Spear.connect_to_persistent_subscription(
-      state.connection,
-      self(),
-      state.stream_name,
-      state.group_name,
-      state[:subscription_opts] || []
-    )
+    {:noreply, [], state}
   end
 
   if_broadway do
-    defp map_event(event, %{broadway?: true} = state) do
+    defp map_event(event, %__MODULE__{config: %{broadway?: true}} = state) do
+      subscription = state.subscriptions[event.metadata.subscription]
+
       %Broadway.Message{
         data: event,
         acknowledger:
-          {Volley.PersistentSubscription.Acknowledger,
-           {state.connection, state.subscription}, %{}}
+          {Volley.PersistentSubscription.Acknowledger, subscription, %{}}
       }
     end
   end
 
-  # coveralls-ignore-start
-  defp map_event(event, _state), do: event
-
-  # coveralls-ignore-stop
+  defp map_event(event, state) do
+    update_in(event.metadata.subscription, &state.subscriptions[&1])
+  end
 end

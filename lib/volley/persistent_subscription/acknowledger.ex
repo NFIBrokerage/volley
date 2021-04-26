@@ -14,12 +14,15 @@ if_broadway do
     @behaviour Broadway.Acknowledger
 
     @impl Broadway.Acknowledger
-    def ack({connection, subscription}, successful_messages, failed_messages) do
+    def ack(subscription, successful_messages, failed_messages) do
       successful_ids = Enum.map(successful_messages, & &1.data.id)
       failed_ids = Enum.map(failed_messages, & &1.data.id)
 
-      Spear.ack(connection, subscription, successful_ids)
-      Spear.nack(connection, subscription, failed_ids, action: :retry)
+      Spear.ack(subscription.connection, subscription.ref, successful_ids)
+
+      Spear.nack(subscription.connection, subscription.ref, failed_ids,
+        action: :retry
+      )
     end
   end
 end
