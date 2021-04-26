@@ -7,15 +7,13 @@ defmodule Volley.LinearSubscription do
   persistent subscriptions and can be used in cases where unordered processing
   is too complicated or undesirable.
 
-  ## Backpressure
+  ## Back-pressure
 
   This producer primarily makes use of `GenStage`'s buffering capabilities to
-  provide backpressure.
+  provide back-pressure.
 
-  A plain subscription through `Spear.subscribe/4` has no backpressure
-  between EventStoreDB and the `Spear.Connection`, so the subscriber
-  process cannot exert any backpressure on the connection. For very
-  large streams, a subscriber process may become overwhelmed as the
+  A plain subscription through `Spear.subscribe/4` has no back-pressure. For
+  very large streams, a subscriber process may become overwhelmed as the
   process mailbox fills up with events as fast as they can be read from
   the EventStoreDB.
 
@@ -285,11 +283,27 @@ defmodule Volley.LinearSubscription do
 
   ## Configuration
 
-  TODO
+  * `:connection` - (required) a `t:Spear.Connection.t/0` to use for connecting
+    to the EventStoreDB
 
-  * :connection
-  * :stream_name
-  * :read_opts
+  * `:stream_name` - (required) the EventStoreDB stream to read
+
+  * `:restore_stream_position!` - (required) an MFA to invoke (with
+    `apply/3`) to retrieve the stream position on start-up of the subscription.
+    This function should read from the source to which the consumer is writing
+    the stream position. A positive integer, a `t:Spear.Event.t/0`, or the
+    atoms `:start` or `:end` may be returned. `:start` starts the subscription
+    at the first event in the stream while end immediately subscribes the
+    producer to the end of the stream.
+
+  * `:read_opts` - (default: `[]`) options to pass to `Spear.read_stream/3`.
+    The `:max_count` option may be worth tuning to achieve good performance:
+    a stream of very small events may benefit from the batch-reading of a large
+    max-count while a stream of very large events may be overwhelmed by a large
+    max-count and need smaller read sizes.
+
+  Remaining options are passed to `GenStage.start_link/3` and the
+  `{:producer, state, opts}` tuple in `c:GenStage.init/1`.
   """
 
   @default_read_size 100
@@ -376,12 +390,16 @@ defmodule Volley.LinearSubscription do
         max_count: read_size + drop_count
       )
 
-    with {:ok, events} <-
+    with position when position != :end <- position,
+         {:ok, events} <-
            Spear.read_stream(state.connection, state.stream_name, opts),
          events when length(events) < read_size <-
            events |> Enum.drop(drop_count) do
       {:done, events}
     else
+      :end ->
+        {:done, []}
+
       events when is_list(events) ->
         {:ok, events}
 

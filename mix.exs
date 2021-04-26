@@ -47,7 +47,6 @@ defmodule Volley.MixProject do
       {:spear, "~> 0.6"},
       {:gen_stage, "~> 1.0"},
       {:broadway, "~> 0.6", optional: true},
-      {:telemetry, "~> 0.4"},
       # docs
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       # test
@@ -76,6 +75,7 @@ defmodule Volley.MixProject do
   defp docs do
     [
       deps: [],
+      main: Volley,
       extras: ~w[
         CHANGELOG.md
       ],
