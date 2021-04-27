@@ -60,7 +60,7 @@ defmodule Volley.MixProject do
     [
       name: "volley",
       files: ~w(lib .formatter.exs mix.exs README.md .version),
-      licenses: [],
+      licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => @source_url,
         "CHANGELOG" => @source_url <> "/blobs/main/CHANGELOG.md"
