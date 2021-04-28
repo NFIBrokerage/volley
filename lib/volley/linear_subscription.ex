@@ -39,13 +39,13 @@ defmodule Volley.LinearSubscription do
   Consumers must implement head-of-line blocking in order to preserve
   correct ordering of events.
 
-  A consumer must meet these four requirements
+  To implement head-of-line blocking, a consumer must meet these three
+  requirements
 
   - only one consumer may subscribe to each producer
   - the consumer must `Process.link/1` itself to the producer process
       - the `c:GenStage.init/1` callback is a suitable place to perform this
         linking
-  - the consumer must only ever exert a demand of `0` or `1`
   - the consumer must curate its stream position
 
   Let's build a basic event handler for a linear subscription with the
@@ -112,6 +112,34 @@ defmodule Volley.LinearSubscription do
     IO.inspect(event.metadata.stream_revision, label: "handling event no.")
     ..
   ```
+
+  Note that it is simpler but not necessary to set a `:max_demand` of 1:
+  in order to handle events in order, the consumer must set its stream position
+  after every successful handle of an event, such as with a routine like so
+
+  ```elixir
+  def handle_events(events, _from, state) do
+    Enum.each(events, fn event ->
+      :ok = handle_one_event(event)
+
+      :ok = update_stream_position(event)
+    end)
+
+    {:noreply, [], state}
+  end
+  ```
+
+  A consumer can break ordering by attempting to handle all events in parallel
+  or without updating the stream position on every successful handle. Consider a
+  scenario where a consumer attempts to handle events `[1, 2, 3]`. If the
+  consumer successfully handles 1 and 3 but fails to handle 2, the consumer
+  cannot write a stream position number that fully describes its position in the
+  stream. This may not be a concern if whatever side-effects the handler is
+  committing are idempotent.
+
+  This producer reads events in chunks at least as large as the demand from
+  the consumer, so setting a very low `:max_demand` does not necessarily
+  increase the number of network calls.
 
   Now if we start up our handler, we'll see it churning through each event
   in order. Let's introduce a bit of failure into the handler though.
