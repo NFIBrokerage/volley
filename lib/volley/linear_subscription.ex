@@ -397,7 +397,7 @@ defmodule Volley.LinearSubscription do
   end
 
   def handle_info({:eos, reason}, state) do
-    {:shutdown, reason, state}
+    {:stop, reason, state}
   end
 
   # coveralls-ignore-stop
