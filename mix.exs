@@ -44,7 +44,7 @@ defmodule Volley.MixProject do
 
   defp deps do
     [
-      {:spear, "~> 0.6"},
+      {:spear, "~> 0.9"},
       {:gen_stage, "~> 1.0"},
       {:broadway, "~> 0.6", optional: true},
       # docs

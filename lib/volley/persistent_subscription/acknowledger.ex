@@ -15,8 +15,8 @@ if_broadway do
 
     @impl Broadway.Acknowledger
     def ack(subscription, successful_messages, failed_messages) do
-      successful_ids = Enum.map(successful_messages, & &1.data.id)
-      failed_ids = Enum.map(failed_messages, & &1.data.id)
+      successful_ids = Enum.map(successful_messages, &Spear.Event.id(&1.data))
+      failed_ids = Enum.map(failed_messages, &Spear.Event.id(&1.data))
 
       Spear.ack(subscription.connection, subscription.ref, successful_ids)
 
