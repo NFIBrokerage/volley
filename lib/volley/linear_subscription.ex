@@ -36,11 +36,10 @@ defmodule Volley.LinearSubscription do
   ## Writing handlers for linear subscriptions
 
   Special care must be taken when writing a consumer for linear subscriptions.
-  Consumers must implement head-of-line blocking in order to preserve
-  correct ordering of events.
+  Consumers must implement blocking in order to preserve correct ordering
+  of events.
 
-  To implement head-of-line blocking, a consumer must meet these three
-  requirements
+  To implement blocking, a consumer must meet these three requirements
 
   - only one consumer may subscribe to each producer
   - the consumer must `Process.link/1` itself to the producer process
@@ -259,14 +258,14 @@ defmodule Volley.LinearSubscription do
 
   With this final change our consumer will read each event in the stream
   in order, reach event 42, raise, retry event 42, raise, and then the
-  supervisor process will shut down. This is the essence of head-of-line
-  blocking: once the pipeline reaches an event which it cannot process,
+  supervisor process will shut down. This is the essence of a blocking
+  subscription: once the pipeline reaches an event which it cannot process,
   the entire pipeline is halted. This is generally an undesirable
   behavior: a code-wise or manual change is usually needed to resolve the
   blockage. Persistent subscriptions (see `Volley.PersistentSubscription`)
   offer much more flexibility around ordering, batching, and concurrency
   thanks to the asynchronous ack and nack workflow and the EventStoreDB's
-  parking system.
+  parking system, but do not guarantee event ordering.
 
   Altogether our handler looks like this:
 
