@@ -6,6 +6,13 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.1.3 - 2021-05-03
+
+### Changed
+
+- Changed some language in the documentation to remove "head-of-line" blocking
+  from the vocabulary
+
 ## 0.1.2 - 2021-04-29
 
 ### Changed
