@@ -440,7 +440,7 @@ defmodule Volley.LinearSubscription do
   defp subscribe(state) do
     opts =
       Map.get(state, :read_opts, [])
-      |> Keyword.merge(from: state.position)
+      |> Keyword.merge(from: position(state))
 
     Spear.subscribe(state.connection, self(), state.stream_name, opts)
   end
