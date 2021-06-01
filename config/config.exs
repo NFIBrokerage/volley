@@ -1,9 +1,6 @@
 import Config
 
+host = System.get_env("EVENTSTORE_HOST") || "localhost"
+
 config :volley, Volley.SpearClient,
-  connection_string: "esdb://admin:changeit@localhost:2113?tls=true",
-  mint_opts: [
-    transport_opts: [
-      cacertfile: Path.join([__DIR__ | ~w[.. certs ca ca.crt]])
-    ]
-  ]
+  connection_string: "esdb://admin:changeit@#{host}:2113"

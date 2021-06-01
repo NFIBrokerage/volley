@@ -1,9 +1,9 @@
-defmodule Volley.LinearSubscription do
+defmodule Volley.InOrderSubscription do
   @moduledoc """
   A subscription which guarantees ordering
 
   A linear subscription consumes an EventStoreDB stream in order, as if
-  subscribed via `Spear.subscribe/4`. Linear subscriptions are simpler than
+  subscribed via `Spear.subscribe/4`. InOrder subscriptions are simpler than
   persistent subscriptions and can be used in cases where unordered processing
   is too complicated or undesirable.
 
@@ -85,7 +85,7 @@ defmodule Volley.LinearSubscription do
   ]
 
   [
-    {Volley.LinearSubscription, linear_subscription_settings},
+    {Volley.InOrderSubscription, linear_subscription_settings},
     MyHandler
   ]
   |> Supervisor.start_link(strategy: :one_for_one)

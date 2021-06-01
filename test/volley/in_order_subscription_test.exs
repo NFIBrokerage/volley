@@ -1,11 +1,11 @@
-defmodule Volley.LinearSubscriptionTest do
+defmodule Volley.InOrderSubscriptionTest do
   use ExUnit.Case, async: true
 
   import Spear.Uuid, only: [uuid_v4: 0]
 
   @client Volley.SpearClient
-  @producer Volley.LinearSubscription
-  @consumer Volley.LinearHandler
+  @producer Volley.InOrderSubscription
+  @consumer Volley.InOrderHandler
 
   @moduletag :capture_log
 

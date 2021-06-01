@@ -1,4 +1,4 @@
-defmodule Volley.LinearHandler do
+defmodule Volley.InOrderHandler do
   @moduledoc """
   A test fixture for a GenStage handler for linear subscriptions
   """
