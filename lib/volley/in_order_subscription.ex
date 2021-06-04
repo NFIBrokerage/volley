@@ -355,11 +355,12 @@ defmodule Volley.InOrderSubscription do
 
   @impl GenStage
   def init(opts) do
+    self = Keyword.get(opts, :name, self())
     {producer_opts, opts} = pop_producer_opts(opts)
 
     state =
       struct(__MODULE__, opts)
-      |> Map.put(:self, Keyword.get(opts, :name, self()))
+      |> Map.put(:self, self)
 
     {:producer, state, producer_opts}
   end
