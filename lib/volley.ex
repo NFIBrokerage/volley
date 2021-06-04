@@ -62,7 +62,7 @@ defmodule Volley do
   @doc false
   def pop_genserver_opts(opts) do
     {Keyword.take(opts, @genserver_option_keys),
-     Keyword.drop(opts, @genserver_option_keys)}
+     Keyword.drop(opts, @genserver_option_keys -- [:name])}
   end
 
   @doc false
