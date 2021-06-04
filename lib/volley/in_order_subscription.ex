@@ -338,6 +338,14 @@ defmodule Volley.InOrderSubscription do
   use GenStage
   import Volley
 
+  defstruct [
+    :connection,
+    :stream_name,
+    :restore_stream_position!,
+    :self,
+    read_opts: []
+  ]
+
   @doc false
   def start_link(opts) do
     {start_link_opts, opts} = pop_genserver_opts(opts)
@@ -349,14 +357,18 @@ defmodule Volley.InOrderSubscription do
   def init(opts) do
     {producer_opts, opts} = pop_producer_opts(opts)
 
-    {:producer, Map.new(opts), producer_opts}
+    state =
+      struct(__MODULE__, opts)
+      |> Map.put(:self, Keyword.get(opts, :name, self()))
+
+    {:producer, state, producer_opts}
   end
 
   @impl GenStage
   def handle_demand(demand, state) do
     with false <- Map.has_key?(state, :subscription),
          {:ok, events} <- read_stream(state, demand) do
-      {:noreply, events, save_position(state, events)}
+      {:noreply, put_self(events, state), save_position(state, events)}
     else
       true ->
         {:noreply, [], state}
@@ -364,7 +376,7 @@ defmodule Volley.InOrderSubscription do
       {:done, events} ->
         GenStage.async_info(self(), :subscribe)
 
-        {:noreply, events, save_position(state, events)}
+        {:noreply, put_self(events, state), save_position(state, events)}
 
       # coveralls-ignore-start
       {:error, reason} ->
@@ -387,7 +399,7 @@ defmodule Volley.InOrderSubscription do
   end
 
   def handle_info(%Spear.Event{} = event, state) do
-    {:noreply, [event], save_position(state, event)}
+    {:noreply, [put_self(event, state)], save_position(state, event)}
   end
 
   # coveralls-ignore-start
@@ -402,8 +414,7 @@ defmodule Volley.InOrderSubscription do
   # coveralls-ignore-stop
 
   defp read_stream(state, demand) do
-    read_size =
-      Keyword.get(state[:read_opts] || [], :max_count, @default_read_size)
+    read_size = Keyword.get(state.read_opts, :max_count, @default_read_size)
 
     read_size = max(demand, read_size)
     position = position(state)
@@ -459,5 +470,13 @@ defmodule Volley.InOrderSubscription do
 
   defp save_position(state, event) do
     Map.put(state, :position, event)
+  end
+
+  defp put_self(events, state) when is_list(events) do
+    Enum.map(events, &put_self(&1, state))
+  end
+
+  defp put_self(%Spear.Event{} = event, state) do
+    put_in(event.metadata[:producer], state.self)
   end
 end
