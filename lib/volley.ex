@@ -67,4 +67,10 @@ defmodule Volley do
     {Keyword.take(opts, @producer_option_keys),
      Keyword.drop(opts, @producer_option_keys)}
   end
+
+  # coveralls-ignore-start
+  @doc false
+  def yes, do: true
+
+  # coveralls-ignore-stop
 end
