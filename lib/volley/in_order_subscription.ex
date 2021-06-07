@@ -2,7 +2,7 @@ defmodule Volley.InOrderSubscription do
   @moduledoc """
   A subscription which guarantees ordering
 
-  A linear subscription consumes an EventStoreDB stream in order, as if
+  An in-order subscription consumes an EventStoreDB stream in order, as if
   subscribed via `Spear.subscribe/4`. InOrder subscriptions are simpler than
   persistent subscriptions and can be used in cases where unordered processing
   is too complicated or undesirable.
@@ -33,9 +33,9 @@ defmodule Volley.InOrderSubscription do
   overwhelmed. Sustained bursts in appends to the stream may eventually
   overfill the `GenStage` buffer, though.
 
-  ## Writing handlers for linear subscriptions
+  ## Writing handlers for in-order subscriptions
 
-  Special care must be taken when writing a consumer for linear subscriptions.
+  Special care must be taken when writing a consumer for in-order subscriptions.
   Consumers must implement blocking in order to preserve correct ordering
   of events.
 
@@ -47,7 +47,7 @@ defmodule Volley.InOrderSubscription do
         linking
   - the consumer must curate its stream position
 
-  Let's build a basic event handler for a linear subscription with the
+  Let's build a basic event handler for a in-order subscription with the
   `GenStage` basics
 
   ```elixir
@@ -77,7 +77,7 @@ defmodule Volley.InOrderSubscription do
   up this handler and the producer like so:
 
   ```elixir
-  linear_subscription_settings = [
+  in_order_subscription_settings = [
     name: MyProducer,
     connection: MySpearClient,
     stream_name: "some_stream",
@@ -85,7 +85,7 @@ defmodule Volley.InOrderSubscription do
   ]
 
   [
-    {Volley.InOrderSubscription, linear_subscription_settings},
+    {Volley.InOrderSubscription, in_order_subscription_settings},
     MyHandler
   ]
   |> Supervisor.start_link(strategy: :one_for_one)
@@ -222,11 +222,12 @@ defmodule Volley.InOrderSubscription do
   And add that MFA to the producer's options:
 
   ```elixir
-  linear_subscription_settings = [
+  in_order_subscription_settings = [
     name: MyProducer,
     connection: MySpearClient,
     stream_name: "some_stream",
-    restore_stream_position!: {MyHandler, :fetch_stream_position!, []}
+    restore_stream_position!: {MyHandler, :fetch_stream_position!, []},
+    subscribe_on_init?: {Function, :identity, [true]}
   ]
   ```
 
@@ -315,13 +316,25 @@ defmodule Volley.InOrderSubscription do
 
   * `:stream_name` - (required) the EventStoreDB stream to read
 
-  * `:restore_stream_position!` - (required) an MFA to invoke (with
-    `apply/3`) to retrieve the stream position on start-up of the subscription.
+  * `:restore_stream_position!` - (required) a 0-arity function to invoke
+    to retrieve the stream position on start-up of the subscription.
     This function should read from the source to which the consumer is writing
     the stream position. A positive integer, a `t:Spear.Event.t/0`, or the
     atoms `:start` or `:end` may be returned. `:start` starts the subscription
     at the first event in the stream while end immediately subscribes the
-    producer to the end of the stream.
+    producer to the end of the stream. This function may either be a function
+    capture (or anonymous function) or an MFA tuple.
+
+  * `:subscribe_on_init?: - (default: `fn -> true end`) a 0-arity function to
+    invoke which determines whether this producer should start producing events
+    after starting up. If this function returns false, the producer must
+    be subscribed manually by sending a `:subscribe` message. This function
+    may either be a function capture (or anonymous function) or an MFA tuple.
+
+  * `:subscribe_after` - (default: `0`) a period in ms to wait until the
+    producer should query the `:subscribe_on_init?` function. This can be useful
+    if the `:subscribe_on_init?` function reaches out to an external service
+    which may not be immediately available on start-up.
 
   * `:read_opts` - (default: `[]`) options to pass to `Spear.read_stream/3`.
     The `:max_count` option may be worth tuning to achieve good performance:
@@ -337,12 +350,18 @@ defmodule Volley.InOrderSubscription do
 
   use GenStage
   import Volley
+  require Logger
 
   defstruct [
     :connection,
+    :subscription,
     :stream_name,
     :restore_stream_position!,
     :self,
+    demand: 0,
+    subscribe_after: 0,
+    subscribe_on_init?: {Volley, :yes, []},
+    producing?: false,
     read_opts: []
   ]
 
@@ -362,20 +381,26 @@ defmodule Volley.InOrderSubscription do
       struct(__MODULE__, opts)
       |> Map.put(:self, self)
 
+    Process.send_after(self(), :check_auto_subscribe, subscribe_after(state))
+
     {:producer, state, producer_opts}
   end
 
   @impl GenStage
   def handle_demand(demand, state) do
-    with false <- Map.has_key?(state, :subscription),
+    with true <- state.producing?,
+         nil <- state.subscription,
          {:ok, events} <- read_stream(state, demand) do
       {:noreply, put_self(events, state), save_position(state, events)}
     else
-      true ->
-        {:noreply, [], state}
+      false ->
+        {:noreply, [], update_in(state.demand, &(&1 + demand))}
+
+      subscription when is_reference(subscription) ->
+        {:noreply, [], update_in(state.demand, &(&1 + demand))}
 
       {:done, events} ->
-        GenStage.async_info(self(), :subscribe)
+        GenStage.async_info(self(), :switch_to_subscription)
 
         {:noreply, put_self(events, state), save_position(state, events)}
 
@@ -388,9 +413,30 @@ defmodule Volley.InOrderSubscription do
 
   @impl GenStage
   def handle_info(:subscribe, state) do
+    handle_demand(state.demand, %__MODULE__{state | producing?: true})
+  end
+
+  def handle_info(:check_auto_subscribe, state) do
+    identifier = "#{inspect(__MODULE__)} (#{inspect(state.self)})"
+
+    if do_function(state.subscribe_on_init?) do
+      Logger.info("#{identifier} subscribing to '#{state.stream_name}'")
+
+      GenStage.async_info(self(), :subscribe)
+    else
+      # coveralls-ignore-start
+      Logger.info("#{identifier} did not subscribe to '#{state.stream_name}'")
+
+      # coveralls-ignore-stop
+    end
+
+    {:noreply, [], state}
+  end
+
+  def handle_info(:switch_to_subscription, state) do
     case subscribe(state) do
       {:ok, sub} ->
-        {:noreply, [], Map.put(state, :subscription, sub)}
+        {:noreply, [], put_in(state.subscription, sub)}
 
       # coveralls-ignore-start
       {:error, reason} ->
@@ -459,8 +505,8 @@ defmodule Volley.InOrderSubscription do
 
   defp position(%{position: position}), do: position
 
-  defp position(%{restore_stream_position!: {m, f, a}}) do
-    apply(m, f, a)
+  defp position(%{restore_stream_position!: restore_function}) do
+    do_function(restore_function)
   end
 
   defp save_position(state, []), do: state
@@ -480,4 +526,21 @@ defmodule Volley.InOrderSubscription do
   defp put_self(%Spear.Event{} = event, state) do
     put_in(event.metadata[:producer], state.self)
   end
+
+  # coveralls-ignore-start
+  defp subscribe_after(%__MODULE__{subscribe_after: nil}),
+    do: Enum.random(3_000..5_000)
+
+  defp subscribe_after(%__MODULE__{subscribe_after: subscribe_after}),
+    do: subscribe_after
+
+  defp do_function(function) when is_function(function, 0) do
+    function.()
+  end
+
+  defp do_function({m, f, a}) do
+    apply(m, f, a)
+  end
+
+  # coveralls-ignore-stop
 end

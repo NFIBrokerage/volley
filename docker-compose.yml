@@ -6,7 +6,7 @@ services:
     command: /opt/eventstore/eventstored --insecure --run-projections=All
 
   app:
-    image: elixir:1.12.0
+    image: elixir:1.12.1
     depends_on:
     - eventstore
     environment:

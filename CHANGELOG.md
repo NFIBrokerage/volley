@@ -6,6 +6,20 @@ The format is based on [Keep a
 Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.0 - 2021-06-07
+
+### Added
+
+- Added `:subscribe_on_init?` and `:subscribe_after` options to the InOrder
+  subscription
+    - these can be used to prevent an InOrder producer from producing events
+      immediately after starting up
+
+### Changed
+
+- The `:restore_stream_position!` for InOrder subscriptions may now be either
+  an MFA tuple or a function (anonymous or capture)
+
 ## 0.3.2 - 2021-06-04
 
 ### Fixed
