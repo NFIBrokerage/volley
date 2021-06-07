@@ -10,8 +10,8 @@ Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to
 
 ### Added
 
-- Added `:subscribe_on_init?` (required) and `:subscribe_after` (defaulted)
-  options to the InOrder subscription
+- Added `:subscribe_on_init?` and `:subscribe_after` options to the InOrder
+  subscription
     - these can be used to prevent an InOrder producer from producing events
       immediately after starting up
 
