@@ -358,6 +358,7 @@ defmodule Volley.InOrderSubscription do
     :stream_name,
     :restore_stream_position!,
     :self,
+    demand: 0,
     subscribe_after: 0,
     subscribe_on_init?: {Volley, :yes, []},
     producing?: false,
@@ -393,10 +394,10 @@ defmodule Volley.InOrderSubscription do
       {:noreply, put_self(events, state), save_position(state, events)}
     else
       false ->
-        {:noreply, [], state}
+        {:noreply, [], update_in(state.demand, &(&1 + demand))}
 
       subscription when is_reference(subscription) ->
-        {:noreply, [], state}
+        {:noreply, [], update_in(state.demand, &(&1 + demand))}
 
       {:done, events} ->
         GenStage.async_info(self(), :switch_to_subscription)
@@ -412,7 +413,7 @@ defmodule Volley.InOrderSubscription do
 
   @impl GenStage
   def handle_info(:subscribe, state) do
-    handle_demand(1, %__MODULE__{state | producing?: true})
+    handle_demand(state.demand, %__MODULE__{state | producing?: true})
   end
 
   def handle_info(:check_auto_subscribe, state) do
