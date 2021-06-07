@@ -2,7 +2,7 @@ defmodule Volley.InOrderSubscription do
   @moduledoc """
   A subscription which guarantees ordering
 
-  A linear subscription consumes an EventStoreDB stream in order, as if
+  An in-order subscription consumes an EventStoreDB stream in order, as if
   subscribed via `Spear.subscribe/4`. InOrder subscriptions are simpler than
   persistent subscriptions and can be used in cases where unordered processing
   is too complicated or undesirable.
@@ -33,9 +33,9 @@ defmodule Volley.InOrderSubscription do
   overwhelmed. Sustained bursts in appends to the stream may eventually
   overfill the `GenStage` buffer, though.
 
-  ## Writing handlers for linear subscriptions
+  ## Writing handlers for in-order subscriptions
 
-  Special care must be taken when writing a consumer for linear subscriptions.
+  Special care must be taken when writing a consumer for in-order subscriptions.
   Consumers must implement blocking in order to preserve correct ordering
   of events.
 
@@ -47,7 +47,7 @@ defmodule Volley.InOrderSubscription do
         linking
   - the consumer must curate its stream position
 
-  Let's build a basic event handler for a linear subscription with the
+  Let's build a basic event handler for a in-order subscription with the
   `GenStage` basics
 
   ```elixir
@@ -77,7 +77,7 @@ defmodule Volley.InOrderSubscription do
   up this handler and the producer like so:
 
   ```elixir
-  linear_subscription_settings = [
+  in_order_subscription_settings = [
     name: MyProducer,
     connection: MySpearClient,
     stream_name: "some_stream",
@@ -85,7 +85,7 @@ defmodule Volley.InOrderSubscription do
   ]
 
   [
-    {Volley.InOrderSubscription, linear_subscription_settings},
+    {Volley.InOrderSubscription, in_order_subscription_settings},
     MyHandler
   ]
   |> Supervisor.start_link(strategy: :one_for_one)
@@ -222,7 +222,7 @@ defmodule Volley.InOrderSubscription do
   And add that MFA to the producer's options:
 
   ```elixir
-  linear_subscription_settings = [
+  in_order_subscription_settings = [
     name: MyProducer,
     connection: MySpearClient,
     stream_name: "some_stream",

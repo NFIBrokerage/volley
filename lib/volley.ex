@@ -16,11 +16,8 @@ defmodule Volley do
 
   The `Volley.InOrderSubscription` producer is a simpler subscription
   model which uses `Spear.read_stream/3` and `Spear.subscribe/4` to read an
-  EventStoreDB stream in order. These subscriptions are called _linear_ within
-  Volley because the strict ordering forces the stream revision to be described
-  as a point on a one-dimensional number line.  `Volley.InOrderSubscription`
-  is a client-side subscription: the client is responsible for storing its
-  stream revision.
+  EventStoreDB stream in order. `Volley.InOrderSubscription` is a client-side
+  subscription: the client is responsible for storing its stream revision.
 
   `Volley.PersistentSubscription`s use the Persistent Subscription feature
   of EventStoreDB to store stream revisions and perform back-pressure on the
@@ -39,7 +36,7 @@ defmodule Volley do
   for events potentially arriving out of order.
 
   Systems do not need to be limited to only one kind of event listener: a mix
-  of linear and persistent subscriptions may be wise.
+  of in-order and persistent subscriptions may be wise.
   """
 
   @genserver_option_keys ~w[debug name timeout spawn_opt hibernate_after]a
