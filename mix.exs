@@ -46,7 +46,7 @@ defmodule Volley.MixProject do
     [
       {:spear, "~> 0.9"},
       {:gen_stage, "~> 1.0"},
-      {:broadway, "~> 0.6", optional: true},
+      {:broadway, "~> 0.6 or ~> 1.0", optional: true},
       # docs
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       # test
