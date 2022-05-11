@@ -325,7 +325,7 @@ defmodule Volley.InOrderSubscription do
     producer to the end of the stream. This function may either be a function
     capture (or anonymous function) or an MFA tuple.
 
-  * `:subscribe_on_init?: - (default: `fn -> true end`) a 0-arity function to
+  * `:subscribe_on_init?` - (default: `fn -> true end`) a 0-arity function to
     invoke which determines whether this producer should start producing events
     after starting up. If this function returns false, the producer must
     be subscribed manually by sending a `:subscribe` message. This function
