@@ -3,7 +3,9 @@ version: '3.8'
 services:
   eventstore:
     image: eventstore/eventstore:21.2.0-buster-slim
-    command: /opt/eventstore/eventstored --insecure --run-projections=All
+    command: --insecure --run-projections=All
+    ports:
+      - 2113:2113
 
   app:
     image: elixir:1.12.1
