@@ -13,7 +13,7 @@ GenStage/Broadway producers for EventStoreDB 20+ with [Spear](https://github.com
 ```elixir
 def deps do
   [
-    {:volley, "~> 0.1"}
+    {:volley, "~> 1.0"}
   ]
 end
 ```
