@@ -4,5 +4,5 @@ Application.ensure_started(:telemetry)
 {:ok, _pid} =
   [Volley.SpearClient] |> Supervisor.start_link(strategy: :one_for_one)
 
-ExUnit.configure(assert_receive_timeout: 1_000)
+ExUnit.configure(assert_receive_timeout: 1_500)
 ExUnit.start()

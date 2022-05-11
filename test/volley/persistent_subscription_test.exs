@@ -118,7 +118,7 @@ defmodule Volley.BroadwayPersistentSubscriptionTest do
       events when is_list(events) -> collect_events([events | acc])
       %Spear.Event{} = event -> collect_events([event | acc])
     after
-      500 -> acc |> List.flatten() |> MapSet.new(& &1.body)
+      1000 -> acc |> List.flatten() |> MapSet.new(& &1.body)
     end
   end
 end
