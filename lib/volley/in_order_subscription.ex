@@ -309,6 +309,93 @@ defmodule Volley.InOrderSubscription do
   end
   ```
 
+  ## Broadway Example
+
+  First, create a `Client` module that will manage your connection to
+  your EventStoreDB instance.
+
+  See [Spear Usage](https://github.com/NFIBrokerage/spear#usage) for help on
+  configuring connection to EvenStoreDB instance.
+
+  ```elixir
+  defmodule MyApp.Client do
+    use Spear.Client, [otp_app: :my_app]
+  end
+  ```
+
+  Next, create a module for your Broadway topology. This module follows
+  Broadway's [Customer Producers](https://hexdocs.pm/broadway/custom-producers.html)
+  documentation.
+
+  It is important to note that depending on your Broadway configuration, in-order
+  message processing is not guaranteed. The below example enables in-order
+  processing by:
+
+  * Adding `concurrency: 1` option in the `producer` config
+  * Adding `default: [max_demand: 1, concurrency: 1]` option to the `processor` config.
+
+  Explore different configurations for what meets your development needs.
+
+  ```elixir
+  defmodule MyApp.Broadway do
+    use Broadway
+
+    def start_link(_args) do
+      Broadway.start_link(__MODULE__, [
+        name: MyApp.Broadway,
+        producer: [
+          module: {
+            Volley.InOrderSubscription, [
+              name: MyApp.Producer,
+              connection: MyApp.Client,
+              stream_name: "my-stream",
+              restore_stream_position!: fn -> :start end
+            ]
+          },
+          transformer: {MyApp.Broadway, :transform, []},
+          concurrency: 1
+        ],
+        processors: [
+          default: [max_demand: 1, concurrency: 1]
+        ],
+      ])
+    end
+
+    def handle_message(_processor, message, _context) do
+      # Do something with message
+      message
+    end
+
+    def transform(event, _opts) do
+      # Perform any necessary enhancements to the event
+      %Broadway.Message{
+        data: event,
+        acknowledger: {MyApp.Broadway, :events, []}
+      }
+    end
+
+    def ack(:events, _sucessful, _failed) do
+      # Perform any custom acknowledgement logic
+      :ok
+    end
+  end
+  ```
+
+  Finally, add these two modules to your application's supervision tree.
+
+  It is important that your `Client` module is before your `Broadway` module!
+
+  ```elixir
+   defmodule MyApp.Application do
+    use Application
+
+    def start(_type, _args) do
+      children = [MyApp.Client, MyApp.Broadway]
+      Supervisor.start_link(children, strategy: :one_for_one)
+    end
+  end
+  ```
+
   ## Configuration
 
   * `:connection` - (required) a `t:Spear.Connection.t/0` to use for connecting
