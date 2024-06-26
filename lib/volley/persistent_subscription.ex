@@ -163,6 +163,13 @@ defmodule Volley.PersistentSubscription do
     {:noreply, [map_event(event, state)], state}
   end
 
+  # coveralls-ignore-start
+  def handle_info(_, state) do
+    {:noreply, [], state}
+  end
+
+  # coveralls-ignore-stop
+
   @impl GenStage
   def handle_demand(_demand, state) do
     {:noreply, [], state}

@@ -458,6 +458,10 @@ defmodule Volley.InOrderSubscription do
     {:stop, reason, state}
   end
 
+  def handle_info(_, state) do
+    {:noreply, [], state}
+  end
+
   # coveralls-ignore-stop
 
   defp read_stream(state, demand) do
